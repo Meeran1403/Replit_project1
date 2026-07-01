@@ -41,7 +41,7 @@ export default function Dashboard() {
   const currentMonthTxs = data.transactions.filter((t) => t.date.startsWith(currentMonth));
   const allIncome = data.transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const allExpenses = data.transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  const balance = (settings.startingBalance || 0) + allIncome - allExpenses;
+  const balance = allIncome - allExpenses;
 
   const monthlyIncome = currentMonthTxs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const monthlyExpenses = currentMonthTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
@@ -83,11 +83,6 @@ export default function Dashboard() {
         <CardContent className="p-6">
           <p className="text-primary-foreground/70 text-sm font-medium mb-1">Current Balance</p>
           <p className="text-4xl font-display font-bold">{formatCurrency(balance, currency)}</p>
-          {settings.startingBalance > 0 && (
-            <p className="text-primary-foreground/60 text-xs mt-2">
-              Starting balance: {formatCurrency(settings.startingBalance, currency)}
-            </p>
-          )}
         </CardContent>
       </Card>
 
