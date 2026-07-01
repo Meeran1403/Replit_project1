@@ -1,35 +1,21 @@
-import { useState } from "react";
 import { Link } from "wouter";
 import {
   ArrowUpRight,
   ArrowDownRight,
   Wallet,
-  PlusCircle,
   PieChart as PieChartIcon,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { formatCurrency } from "@/lib/formatters";
 import { useStore } from "@/hooks/use-store";
-import type { Category } from "@/hooks/use-store";
 import { useSettings } from "@/hooks/use-settings";
 import { TransactionRow } from "@/components/TransactionRow";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
-import { CATEGORIES, getCategoryColor } from "@/lib/categories";
+import { getCategoryColor } from "@/lib/categories";
 import { cn } from "@/lib/utils";
+import type { Category } from "@/hooks/use-store";
 
 const getHexColor = (colorClass: string) => {
   const map: Record<string, string> = {
@@ -44,46 +30,13 @@ const getHexColor = (colorClass: string) => {
   return map[colorClass] || "#64748b";
 };
 
-const quickSchema = z.object({
-  amount: z.coerce.number().positive("Enter an amount"),
-  type: z.enum(["expense", "income"]),
-  category: z.string().min(1, "Pick a category"),
-  note: z.string().optional(),
-  date: z.string().min(1),
-});
-type QuickForm = z.infer<typeof quickSchema>;
-
 export default function Dashboard() {
-  const { data, addTransaction, updateTransaction, deleteTransaction } = useStore();
+  const { data, updateTransaction, deleteTransaction } = useStore();
   const { settings } = useSettings();
   const { toast } = useToast();
   const currency = settings.currency;
-  const currencySymbol = settings.currencySymbol || "$";
 
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const today = new Date().toISOString().slice(0, 10);
-
-  const form = useForm<QuickForm>({
-    resolver: zodResolver(quickSchema),
-    defaultValues: { amount: 0, type: "expense", category: "", note: "", date: today },
-  });
-
-  const watchType = form.watch("type");
-  const availableCategories = Object.values(CATEGORIES).filter(
-    (c) => c.type === "both" || c.type === watchType
-  );
-
-  const handleQuickAdd = async (values: QuickForm) => {
-    await addTransaction({
-      amount: values.amount,
-      type: values.type,
-      category: values.category as Category,
-      note: values.note ?? "",
-      date: new Date(values.date).toISOString(),
-    });
-    toast({ title: values.type === "expense" ? "Expense added" : "Income added" });
-    form.reset({ amount: 0, type: values.type, category: "", note: "", date: today });
-  };
 
   const currentMonthTxs = data.transactions.filter((t) => t.date.startsWith(currentMonth));
   const allIncome = data.transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
@@ -182,136 +135,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Quick add */}
-      <Card className="bg-card shadow-sm border-none ring-1 ring-border">
-        <CardHeader className="pb-3 pt-5 px-6">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <PlusCircle className="w-4 h-4 text-primary" />
-            Quick add
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-6 pb-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleQuickAdd)} className="space-y-3">
-              {/* Type toggle */}
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <div className="flex p-1 bg-muted rounded-lg w-full" data-testid="quick-type-toggle">
-                    {(["expense", "income"] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => { field.onChange(t); form.setValue("category", ""); }}
-                        className={cn(
-                          "flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all capitalize",
-                          field.value === t
-                            ? "bg-background shadow-sm text-foreground"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              />
-
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {/* Amount */}
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem className="col-span-1">
-                      <FormControl>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{currencySymbol}</span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            className="pl-7 h-9 text-sm"
-                            {...field}
-                            data-testid="quick-amount"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Category */}
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem className="col-span-1">
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="h-9 text-sm" data-testid="quick-category">
-                            <SelectValue placeholder="Category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {availableCategories.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id}>
-                              <div className="flex items-center gap-2">
-                                <cat.icon className={cn("w-3.5 h-3.5", cat.color)} />
-                                {cat.id}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Note */}
-                <FormField
-                  control={form.control}
-                  name="note"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2 sm:col-span-1">
-                      <FormControl>
-                        <Input
-                          placeholder="Note (optional)"
-                          className="h-9 text-sm"
-                          {...field}
-                          data-testid="quick-note"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* Date */}
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2 sm:col-span-1">
-                      <FormControl>
-                        <Input type="date" className="h-9 text-sm" {...field} data-testid="quick-date" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Button type="submit" className="w-full h-9" data-testid="quick-submit">
-                Add entry
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-
       {/* Recent + chart */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
@@ -336,7 +159,7 @@ export default function Dashboard() {
               ))
             ) : (
               <div className="p-8 text-center text-muted-foreground">
-                <p className="text-sm">No transactions yet — use the quick add above.</p>
+                <p className="text-sm">No transactions yet — add one from the Transactions page.</p>
               </div>
             )}
           </div>

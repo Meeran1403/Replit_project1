@@ -6,7 +6,6 @@ import {
   Wallet,
   User,
   Globe,
-  DollarSign,
   HardDrive,
   FolderOpen,
   Database,
@@ -26,14 +25,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const { completeOnboarding } = useSettings();
   const hasFS = supportsFileSystem();
 
-  const totalSteps = hasFS ? 4 : 3;
+  const totalSteps = hasFS ? 3 : 2;
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [currencySearch, setCurrencySearch] = useState("");
-  const [startingBalance, setStartingBalance] = useState("");
   const [storageChoice, setStorageChoice] = useState<"localStorage" | "filesystem">("localStorage");
   const [isPickingFile, setIsPickingFile] = useState(false);
 
@@ -49,8 +47,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const STEPS = [
     { id: 1, label: "Name", icon: User },
     { id: 2, label: "Currency", icon: Globe },
-    { id: 3, label: "Balance", icon: DollarSign },
-    ...(hasFS ? [{ id: 4, label: "Storage", icon: HardDrive }] : []),
+    ...(hasFS ? [{ id: 3, label: "Storage", icon: HardDrive }] : []),
   ];
 
   const handleNext = () => {
@@ -76,7 +73,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       const ok = await initFileStorage();
       setIsPickingFile(false);
       if (!ok) {
-        // user cancelled the file picker – fall back
         finalStorage = "localStorage";
       }
     }
@@ -85,7 +81,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       name: name.trim(),
       currency: selectedCurrency.code,
       currencySymbol: selectedCurrency.symbol,
-      startingBalance: startingBalance ? parseFloat(startingBalance) : 0,
+      startingBalance: 0,
       storageType: finalStorage,
     };
     completeOnboarding(data);
@@ -219,52 +215,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
           )}
 
-          {/* Step 3 – Starting balance */}
-          {step === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-display font-bold text-foreground">Starting balance</h2>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Enter what you currently have — your wallet, bank account, or savings. Skip it and start at zero.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Current balance ({selectedCurrency.code})
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                    {selectedCurrency.symbol}
-                  </span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={startingBalance}
-                    onChange={(e) => setStartingBalance(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleNext()}
-                    className="pl-9 h-11 text-base"
-                    autoFocus
-                    data-testid="input-starting-balance"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Optional — you can update this anytime. Income and expenses you add will adjust your balance from here.
-                </p>
-              </div>
-              {startingBalance && parseFloat(startingBalance) > 0 && (
-                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
-                  <p className="text-sm text-primary font-medium">
-                    Starting with {selectedCurrency.symbol}{parseFloat(startingBalance).toLocaleString()} {selectedCurrency.code}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 4 – Storage (only if File System API available) */}
-          {step === 4 && hasFS && (
+          {/* Step 3 – Storage (only if File System API available) */}
+          {step === 3 && hasFS && (
             <div className="space-y-5">
               <div>
                 <h2 className="text-2xl font-display font-bold text-foreground">Where to save your data</h2>
