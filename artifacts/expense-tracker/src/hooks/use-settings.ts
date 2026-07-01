@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react";
-import type { Category } from "./use-store";
+import type { StorageType } from "@/lib/storage";
+
+export { type StorageType };
 
 export const CURRENCIES = [
   { code: "USD", symbol: "$", name: "US Dollar" },
@@ -31,28 +33,12 @@ export const CURRENCIES = [
   { code: "EGP", symbol: "£", name: "Egyptian Pound" },
 ];
 
-export const ALL_CATEGORIES: Category[] = [
-  "Food & Dining",
-  "Transportation",
-  "Housing",
-  "Entertainment",
-  "Healthcare",
-  "Shopping",
-  "Education",
-  "Travel",
-  "Utilities",
-  "Salary",
-  "Freelance",
-  "Investment",
-  "Other",
-];
-
 export interface UserSettings {
   name: string;
   currency: string;
   currencySymbol: string;
-  monthlyBudget: number;
-  enabledCategories: Category[];
+  startingBalance: number;
+  storageType: StorageType;
   onboardingComplete: boolean;
 }
 
@@ -62,8 +48,8 @@ const DEFAULT_SETTINGS: UserSettings = {
   name: "",
   currency: "USD",
   currencySymbol: "$",
-  monthlyBudget: 0,
-  enabledCategories: [...ALL_CATEGORIES],
+  startingBalance: 0,
+  storageType: "localStorage",
   onboardingComplete: false,
 };
 
@@ -88,11 +74,14 @@ export function useSettings() {
     });
   }, []);
 
-  const completeOnboarding = useCallback((data: Omit<UserSettings, "onboardingComplete">) => {
-    const next: UserSettings = { ...data, onboardingComplete: true };
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
-    setSettings(next);
-  }, []);
+  const completeOnboarding = useCallback(
+    (data: Omit<UserSettings, "onboardingComplete">) => {
+      const next: UserSettings = { ...data, onboardingComplete: true };
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+      setSettings(next);
+    },
+    []
+  );
 
   const resetOnboarding = useCallback(() => {
     localStorage.removeItem(SETTINGS_KEY);

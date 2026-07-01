@@ -1,19 +1,22 @@
 import { useState } from "react";
-import { CheckCircle2, ChevronRight, ChevronLeft, Wallet, User, Globe, Target, LayoutGrid } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronRight,
+  ChevronLeft,
+  Wallet,
+  User,
+  Globe,
+  DollarSign,
+  HardDrive,
+  FolderOpen,
+  Database,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useSettings, CURRENCIES, ALL_CATEGORIES } from "@/hooks/use-settings";
+import { useSettings, CURRENCIES } from "@/hooks/use-settings";
 import type { UserSettings } from "@/hooks/use-settings";
-import type { Category } from "@/hooks/use-store";
-import { CATEGORIES } from "@/lib/categories";
+import { supportsFileSystem, initFileStorage } from "@/hooks/use-store";
 import { cn } from "@/lib/utils";
-
-const STEPS = [
-  { id: 1, label: "Name", icon: User },
-  { id: 2, label: "Currency", icon: Globe },
-  { id: 3, label: "Budget", icon: Target },
-  { id: 4, label: "Categories", icon: LayoutGrid },
-];
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -21,15 +24,20 @@ interface OnboardingProps {
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const { completeOnboarding } = useSettings();
+  const hasFS = supportsFileSystem();
+
+  const totalSteps = hasFS ? 4 : 3;
+
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [currencySearch, setCurrencySearch] = useState("");
-  const [monthlyBudget, setMonthlyBudget] = useState("");
-  const [enabledCategories, setEnabledCategories] = useState<Category[]>([...ALL_CATEGORIES]);
+  const [startingBalance, setStartingBalance] = useState("");
+  const [storageChoice, setStorageChoice] = useState<"localStorage" | "filesystem">("localStorage");
+  const [isPickingFile, setIsPickingFile] = useState(false);
 
-  const selectedCurrency = CURRENCIES.find((c) => c.code === currency) || CURRENCIES[0];
+  const selectedCurrency = CURRENCIES.find((c) => c.code === currency) ?? CURRENCIES[0];
 
   const filteredCurrencies = CURRENCIES.filter(
     (c) =>
@@ -38,11 +46,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       c.symbol.includes(currencySearch)
   );
 
-  const toggleCategory = (cat: Category) => {
-    setEnabledCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
-    );
-  };
+  const STEPS = [
+    { id: 1, label: "Name", icon: User },
+    { id: 2, label: "Currency", icon: Globe },
+    { id: 3, label: "Balance", icon: DollarSign },
+    ...(hasFS ? [{ id: 4, label: "Storage", icon: HardDrive }] : []),
+  ];
 
   const handleNext = () => {
     if (step === 1) {
@@ -52,24 +61,38 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       }
       setNameError("");
     }
-    if (step < STEPS.length) setStep((s) => s + 1);
+    if (step < totalSteps) setStep((s) => s + 1);
   };
 
   const handleBack = () => {
     if (step > 1) setStep((s) => s - 1);
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    let finalStorage: "localStorage" | "filesystem" = storageChoice;
+
+    if (hasFS && storageChoice === "filesystem") {
+      setIsPickingFile(true);
+      const ok = await initFileStorage();
+      setIsPickingFile(false);
+      if (!ok) {
+        // user cancelled the file picker – fall back
+        finalStorage = "localStorage";
+      }
+    }
+
     const data: Omit<UserSettings, "onboardingComplete"> = {
       name: name.trim(),
       currency: selectedCurrency.code,
       currencySymbol: selectedCurrency.symbol,
-      monthlyBudget: monthlyBudget ? parseFloat(monthlyBudget) : 0,
-      enabledCategories: enabledCategories.length > 0 ? enabledCategories : [...ALL_CATEGORIES],
+      startingBalance: startingBalance ? parseFloat(startingBalance) : 0,
+      storageType: finalStorage,
     };
     completeOnboarding(data);
     onComplete();
   };
+
+  const isLastStep = step === totalSteps;
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -93,7 +116,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <div className="flex flex-col items-center gap-1.5">
                   <div
                     className={cn(
-                      "w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300",
+                      "w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300",
                       isComplete
                         ? "bg-primary text-primary-foreground"
                         : isActive
@@ -103,12 +126,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   >
                     {isComplete ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
                   </div>
-                  <span
-                    className={cn(
-                      "text-[11px] font-medium",
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    )}
-                  >
+                  <span className={cn("text-[11px] font-medium", isActive ? "text-primary" : "text-muted-foreground")}>
                     {s.label}
                   </span>
                 </div>
@@ -127,12 +145,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
         {/* Card */}
         <div className="bg-card border rounded-2xl shadow-sm p-8 animate-in fade-in slide-in-from-bottom-4 duration-400">
+          {/* Step 1 – Name */}
           {step === 1 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-display font-bold text-foreground">Welcome to Ledger</h2>
-                <p className="text-muted-foreground mt-2">
-                  Your personal finance tracker — all data stays on your device, no account needed.
+                <p className="text-muted-foreground mt-2 text-sm">
+                  Your personal finance tracker — everything stays on your device. No account needed.
                 </p>
               </div>
               <div className="space-y-2">
@@ -148,7 +167,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     if (e.target.value.trim()) setNameError("");
                   }}
                   onKeyDown={(e) => e.key === "Enter" && handleNext()}
-                  className="text-base h-11"
+                  className="h-11 text-base"
                   autoFocus
                   data-testid="input-onboarding-name"
                 />
@@ -157,12 +176,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
           )}
 
+          {/* Step 2 – Currency */}
           {step === 2 && (
             <div className="space-y-5">
               <div>
                 <h2 className="text-2xl font-display font-bold text-foreground">Your currency</h2>
-                <p className="text-muted-foreground mt-1">
-                  All amounts will be displayed in your chosen currency.
+                <p className="text-muted-foreground mt-1 text-sm">
+                  All amounts will be shown in your chosen currency.
                 </p>
               </div>
               <Input
@@ -172,7 +192,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 className="h-10"
                 data-testid="input-currency-search"
               />
-              <div className="h-64 overflow-y-auto space-y-1 pr-1 -mr-1">
+              <div className="h-64 overflow-y-auto space-y-1 pr-1">
                 {filteredCurrencies.map((c) => (
                   <button
                     key={c.code}
@@ -199,17 +219,18 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
           )}
 
+          {/* Step 3 – Starting balance */}
           {step === 3 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-display font-bold text-foreground">Monthly budget</h2>
-                <p className="text-muted-foreground mt-1">
-                  Set an overall spending limit for each month. You can always change this later.
+                <h2 className="text-2xl font-display font-bold text-foreground">Starting balance</h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Enter what you currently have — your wallet, bank account, or savings. Skip it and start at zero.
                 </p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
-                  Total monthly spending limit ({selectedCurrency.code})
+                  Current balance ({selectedCurrency.code})
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
@@ -218,67 +239,91 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <Input
                     type="number"
                     min="0"
-                    step="50"
-                    placeholder="e.g. 2000"
-                    value={monthlyBudget}
-                    onChange={(e) => setMonthlyBudget(e.target.value)}
+                    step="0.01"
+                    placeholder="0.00"
+                    value={startingBalance}
+                    onChange={(e) => setStartingBalance(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleNext()}
                     className="pl-9 h-11 text-base"
-                    data-testid="input-monthly-budget"
+                    autoFocus
+                    data-testid="input-starting-balance"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Optional — leave blank to skip budget tracking for now.
+                  Optional — you can update this anytime. Income and expenses you add will adjust your balance from here.
                 </p>
               </div>
-
-              {monthlyBudget && parseFloat(monthlyBudget) > 0 && (
+              {startingBalance && parseFloat(startingBalance) > 0 && (
                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
                   <p className="text-sm text-primary font-medium">
-                    Your monthly limit: {selectedCurrency.symbol}{parseFloat(monthlyBudget).toLocaleString()} {selectedCurrency.code}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    The app will alert you as you approach this limit.
+                    Starting with {selectedCurrency.symbol}{parseFloat(startingBalance).toLocaleString()} {selectedCurrency.code}
                   </p>
                 </div>
               )}
             </div>
           )}
 
-          {step === 4 && (
+          {/* Step 4 – Storage (only if File System API available) */}
+          {step === 4 && hasFS && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-display font-bold text-foreground">Your categories</h2>
-                <p className="text-muted-foreground mt-1">
-                  Choose which spending and income categories matter to you.
+                <h2 className="text-2xl font-display font-bold text-foreground">Where to save your data</h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Your data never leaves your device. Choose where you want it stored.
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {ALL_CATEGORIES.map((cat) => {
-                  const info = CATEGORIES[cat];
-                  const isEnabled = enabledCategories.includes(cat);
-                  const Icon = info.icon;
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => toggleCategory(cat)}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-xl border text-sm text-left transition-all duration-150",
-                        isEnabled
-                          ? "border-primary/30 bg-primary/5 text-foreground font-medium"
-                          : "border-border bg-background text-muted-foreground hover:border-border/80 hover:bg-muted/40"
-                      )}
-                      data-testid={`toggle-category-${cat}`}
-                    >
-                      <Icon className={cn("w-4 h-4 flex-shrink-0", isEnabled ? info.color : "text-muted-foreground/50")} />
-                      <span className="truncate">{cat}</span>
-                    </button>
-                  );
-                })}
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setStorageChoice("localStorage")}
+                  className={cn(
+                    "w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all",
+                    storageChoice === "localStorage"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40"
+                  )}
+                  data-testid="option-storage-local"
+                >
+                  <div className={cn("mt-0.5 w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
+                    storageChoice === "localStorage" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className={cn("font-semibold", storageChoice === "localStorage" ? "text-primary" : "text-foreground")}>
+                      Browser storage
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Data is saved automatically in this browser. Easiest option, works offline.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStorageChoice("filesystem")}
+                  className={cn(
+                    "w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all",
+                    storageChoice === "filesystem"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40"
+                  )}
+                  data-testid="option-storage-file"
+                >
+                  <div className={cn("mt-0.5 w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
+                    storageChoice === "filesystem" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
+                    <FolderOpen className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className={cn("font-semibold", storageChoice === "filesystem" ? "text-primary" : "text-foreground")}>
+                      File on your computer
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Save as a <code className="text-xs bg-muted px-1 rounded">.json</code> file you control. Back it up, move it, share it.
+                    </p>
+                  </div>
+                </button>
               </div>
-              <p className="text-xs text-muted-foreground text-center">
-                {enabledCategories.length} of {ALL_CATEGORIES.length} selected
-              </p>
             </div>
           )}
         </div>
@@ -297,10 +342,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </Button>
 
           <span className="text-sm text-muted-foreground">
-            {step} of {STEPS.length}
+            {step} of {totalSteps}
           </span>
 
-          {step < STEPS.length ? (
+          {!isLastStep ? (
             <Button onClick={handleNext} className="gap-2" data-testid="button-onboarding-next">
               Next
               <ChevronRight className="w-4 h-4" />
@@ -308,11 +353,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           ) : (
             <Button
               onClick={handleFinish}
-              className="gap-2 bg-primary hover:bg-primary/90"
+              disabled={isPickingFile}
+              className="gap-2"
               data-testid="button-onboarding-finish"
             >
-              Get started
-              <CheckCircle2 className="w-4 h-4" />
+              {isPickingFile ? "Choosing file…" : "Get started"}
+              {!isPickingFile && <CheckCircle2 className="w-4 h-4" />}
             </Button>
           )}
         </div>

@@ -34,38 +34,24 @@ export default function Budgets() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
-
   const currentMonth = new Date().toISOString().slice(0, 7);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
 
   const form = useForm({
     resolver: zodResolver(budgetSchema),
-    defaultValues: {
-      category: "",
-      limit: 0,
-    },
+    defaultValues: { category: "", limit: 0 },
   });
 
-  const monthBudgets = useMemo(() => {
-    return data.budgets.filter((b) => b.month === selectedMonth);
-  }, [data.budgets, selectedMonth]);
+  const monthBudgets = useMemo(() => data.budgets.filter((b) => b.month === selectedMonth), [data.budgets, selectedMonth]);
 
   const monthExpenses = useMemo(() => {
-    const expenses = data.transactions.filter(
-      (t) => t.type === "expense" && t.date.startsWith(selectedMonth)
-    );
-    return expenses.reduce((acc, t) => {
-      acc[t.category] = (acc[t.category] || 0) + t.amount;
-      return acc;
-    }, {} as Record<string, number>);
+    return data.transactions
+      .filter((t) => t.type === "expense" && t.date.startsWith(selectedMonth))
+      .reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc; }, {} as Record<string, number>);
   }, [data.transactions, selectedMonth]);
 
-  const handleSubmit = (values: z.infer<typeof budgetSchema>) => {
-    setBudget({
-      category: values.category as any,
-      limit: values.limit,
-      month: selectedMonth,
-    });
+  const handleSubmit = async (values: z.infer<typeof budgetSchema>) => {
+    await setBudget({ category: values.category as any, limit: values.limit, month: selectedMonth });
     toast({ title: editingBudget ? "Budget updated" : "Budget added" });
     setIsAdding(false);
     setEditingBudget(null);
@@ -78,8 +64,8 @@ export default function Budgets() {
     setIsAdding(true);
   };
 
-  const handleDelete = (id: string) => {
-    deleteBudget(id);
+  const handleDelete = async (id: string) => {
+    await deleteBudget(id);
     toast({ title: "Budget deleted" });
   };
 
@@ -93,20 +79,15 @@ export default function Budgets() {
     return opts;
   }, []);
 
-  const availableExpenseCategories = Object.values(CATEGORIES).filter(
-    (c) =>
-      c.type !== "income" &&
-      (settings.enabledCategories.length === 0 || settings.enabledCategories.includes(c.id))
-  );
+  const expenseCategories = Object.values(CATEGORIES).filter((c) => c.type !== "income");
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold tracking-tight text-foreground">Budgets</h1>
-          <p className="text-muted-foreground mt-1">Set limits and track your spending.</p>
+          <p className="text-muted-foreground mt-1">Set monthly limits and track spending.</p>
         </div>
-
         <div className="flex items-center gap-3">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-[180px] bg-background">
@@ -118,12 +99,7 @@ export default function Budgets() {
               ))}
             </SelectContent>
           </Select>
-
-          <Button onClick={() => {
-            setEditingBudget(null);
-            form.reset({ category: "", limit: 0 });
-            setIsAdding(true);
-          }} data-testid="button-add-budget">
+          <Button onClick={() => { setEditingBudget(null); form.reset({ category: "", limit: 0 }); setIsAdding(true); }} data-testid="button-add-budget">
             <PlusCircle className="w-4 h-4 mr-2" />
             New Budget
           </Button>
@@ -147,9 +123,9 @@ export default function Budgets() {
             <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
               <Target className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-medium text-foreground mb-2">No budgets set for this month</h3>
-            <p className="text-muted-foreground max-w-md mx-auto mb-6">
-              Create a budget to help you stay on track with your spending goals.
+            <h3 className="text-xl font-medium text-foreground mb-2">No budgets for this month</h3>
+            <p className="text-muted-foreground max-w-sm mx-auto mb-6 text-sm">
+              Set spending limits per category to stay on track.
             </p>
             <Button onClick={() => setIsAdding(true)}>
               <PlusCircle className="w-4 h-4 mr-2" />
@@ -159,13 +135,7 @@ export default function Budgets() {
         )}
       </div>
 
-      <Dialog open={isAdding} onOpenChange={(open) => {
-        setIsAdding(open);
-        if (!open) {
-          setEditingBudget(null);
-          form.reset();
-        }
-      }}>
+      <Dialog open={isAdding} onOpenChange={(open) => { setIsAdding(open); if (!open) { setEditingBudget(null); form.reset(); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingBudget ? "Edit Budget" : "Create Budget"}</DialogTitle>
@@ -180,12 +150,10 @@ export default function Budgets() {
                     <FormLabel>Category</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingBudget}>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {availableExpenseCategories.map((c) => (
+                        {expenseCategories.map((c) => (
                           <SelectItem key={c.id} value={c.id}>{c.id}</SelectItem>
                         ))}
                       </SelectContent>

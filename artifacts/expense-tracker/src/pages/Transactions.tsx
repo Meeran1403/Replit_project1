@@ -20,17 +20,12 @@ export default function Transactions() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
-  const availableCategories = Object.keys(CATEGORIES).filter(
-    (c) =>
-      settings.enabledCategories.length === 0 ||
-      settings.enabledCategories.includes(c as any)
-  );
-
   const filteredTransactions = useMemo(() => {
     return data.transactions
       .filter((t) => {
+        const note = t.note || (t as any).description || "";
         const matchesSearch =
-          t.description.toLowerCase().includes(search.toLowerCase()) ||
+          note.toLowerCase().includes(search.toLowerCase()) ||
           t.category.toLowerCase().includes(search.toLowerCase());
         const matchesType = typeFilter === "all" || t.type === typeFilter;
         const matchesCategory = categoryFilter === "all" || t.category === categoryFilter;
@@ -43,28 +38,26 @@ export default function Transactions() {
       });
   }, [data.transactions, search, typeFilter, categoryFilter, sortOrder]);
 
-  const handleUpdate = (id: string, updateData: any) => {
-    updateTransaction(id, updateData);
+  const handleUpdate = async (id: string, updateData: any) => {
+    await updateTransaction(id, updateData);
     toast({ title: "Transaction updated" });
   };
 
-  const handleDelete = (id: string) => {
-    deleteTransaction(id);
+  const handleDelete = async (id: string) => {
+    await deleteTransaction(id);
     toast({ title: "Transaction deleted" });
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-3xl font-display font-bold tracking-tight text-foreground">Transactions</h1>
-      </div>
+      <h1 className="text-3xl font-display font-bold tracking-tight text-foreground">Transactions</h1>
 
-      <div className="bg-card p-4 rounded-2xl shadow-sm border space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="bg-card p-4 rounded-2xl shadow-sm border">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search transactions..."
+              placeholder="Search by note or category…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 bg-background"
@@ -73,22 +66,22 @@ export default function Transactions() {
           </div>
           <div className="flex gap-2">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[130px] bg-background" data-testid="select-filter-type">
+              <SelectTrigger className="w-[120px] bg-background" data-testid="select-filter-type">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="all">All types</SelectItem>
                 <SelectItem value="expense">Expense</SelectItem>
                 <SelectItem value="income">Income</SelectItem>
               </SelectContent>
             </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[160px] bg-background" data-testid="select-filter-category">
+              <SelectTrigger className="w-[150px] bg-background" data-testid="select-filter-category">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {availableCategories.map((c) => (
+                <SelectItem value="all">All categories</SelectItem>
+                {Object.keys(CATEGORIES).map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
               </SelectContent>
@@ -97,7 +90,7 @@ export default function Transactions() {
               variant="outline"
               size="icon"
               onClick={() => setSortOrder((prev) => (prev === "newest" ? "oldest" : "newest"))}
-              title={`Sort by date: ${sortOrder === "newest" ? "Oldest first" : "Newest first"}`}
+              title={`Currently: ${sortOrder === "newest" ? "Newest first" : "Oldest first"}`}
               className="bg-background shrink-0"
               data-testid="button-sort"
             >
@@ -124,11 +117,11 @@ export default function Transactions() {
               <Search className="w-6 h-6 text-muted-foreground" />
             </div>
             <p className="text-lg font-medium text-foreground mb-1">
-              {data.transactions.length === 0 ? "No transactions yet" : "No transactions found"}
+              {data.transactions.length === 0 ? "No transactions yet" : "No results"}
             </p>
-            <p>
+            <p className="text-sm">
               {data.transactions.length === 0
-                ? "Add your first transaction to get started."
+                ? "Add your first entry from the dashboard."
                 : "Try adjusting your search or filters."}
             </p>
           </div>

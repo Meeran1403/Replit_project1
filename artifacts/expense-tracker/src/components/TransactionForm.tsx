@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -19,10 +18,8 @@ const formSchema = z.object({
   amount: z.coerce.number().positive("Amount must be greater than 0"),
   type: z.enum(["income", "expense"]),
   category: z.string().min(1, "Please select a category"),
-  date: z.date({
-    required_error: "A date is required.",
-  }),
-  description: z.string().min(1, "Description is required"),
+  date: z.date({ required_error: "A date is required." }),
+  note: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -45,22 +42,20 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
       type: defaultValues?.type || "expense",
       category: defaultValues?.category || "",
       date: defaultValues?.date ? new Date(defaultValues.date) : new Date(),
-      description: defaultValues?.description || "",
+      note: defaultValues?.note || "",
     },
   });
 
   const type = form.watch("type");
-
   const availableCategories = Object.values(CATEGORIES).filter(
-    (c) =>
-      (c.type === "both" || c.type === type) &&
-      (settings.enabledCategories.length === 0 || settings.enabledCategories.includes(c.id))
+    (c) => c.type === "both" || c.type === type
   );
 
   const handleSubmit = (values: FormValues) => {
     onSubmit({
       ...values,
       category: values.category as Category,
+      note: values.note ?? "",
       date: values.date.toISOString(),
     });
   };
@@ -68,44 +63,30 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        {/* Type toggle */}
         <FormField
           control={form.control}
           name="type"
           render={({ field }) => (
             <FormItem className="space-y-3">
-              <FormLabel>Transaction Type</FormLabel>
+              <FormLabel>Type</FormLabel>
               <FormControl>
                 <div className="flex p-1 bg-muted rounded-lg" data-testid="input-type-toggle">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      field.onChange("expense");
-                      form.setValue("category", "");
-                    }}
-                    className={cn(
-                      "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all",
-                      field.value === "expense"
-                        ? "bg-background shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Expense
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      field.onChange("income");
-                      form.setValue("category", "");
-                    }}
-                    className={cn(
-                      "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all",
-                      field.value === "income"
-                        ? "bg-background shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Income
-                  </button>
+                  {(["expense", "income"] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => { field.onChange(t); form.setValue("category", ""); }}
+                      className={cn(
+                        "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all capitalize",
+                        field.value === t
+                          ? "bg-background shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {t}
+                    </button>
+                  ))}
                 </div>
               </FormControl>
               <FormMessage />
@@ -114,6 +95,7 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Amount */}
           <FormField
             control={form.control}
             name="amount"
@@ -131,6 +113,7 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
             )}
           />
 
+          {/* Date */}
           <FormField
             control={form.control}
             name="date"
@@ -141,29 +124,17 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal bg-background",
-                          !field.value && "text-muted-foreground"
-                        )}
+                        variant="outline"
+                        className={cn("w-full pl-3 text-left font-normal bg-background", !field.value && "text-muted-foreground")}
                         data-testid="input-date"
                       >
-                        {field.value ? (
-                          format(field.value, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
+                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
+                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
                   </PopoverContent>
                 </Popover>
                 <FormMessage />
@@ -172,6 +143,7 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
           />
         </div>
 
+        {/* Category */}
         <FormField
           control={form.control}
           name="category"
@@ -200,14 +172,15 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
           )}
         />
 
+        {/* Note */}
         <FormField
           control={form.control}
-          name="description"
+          name="note"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>Note <span className="text-muted-foreground font-normal text-xs">(optional)</span></FormLabel>
               <FormControl>
-                <Input placeholder="What was this for?" className="bg-background" {...field} data-testid="input-description" />
+                <Input placeholder="What was this for?" className="bg-background" {...field} data-testid="input-note" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -220,9 +193,7 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
               Cancel
             </Button>
           )}
-          <Button type="submit" data-testid="button-submit">
-            {submitLabel}
-          </Button>
+          <Button type="submit" data-testid="button-submit">{submitLabel}</Button>
         </div>
       </form>
     </Form>
