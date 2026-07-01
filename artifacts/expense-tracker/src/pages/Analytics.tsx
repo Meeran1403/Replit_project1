@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useStore } from "@/hooks/use-store";
+import { useSettings } from "@/hooks/use-settings";
 import { formatMonth, formatCurrency } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -29,45 +30,45 @@ const getHexColor = (colorClass: string) => {
 
 export default function Analytics() {
   const { data } = useStore();
+  const { settings } = useSettings();
+  const currency = settings.currency;
 
-  // Generate last 6 months data for charts
   const monthlyData = useMemo(() => {
     const months = [];
     const date = new Date();
-    date.setDate(1); // Set to 1st to avoid edge cases with varying month lengths
-    
+    date.setDate(1);
+
     for (let i = 5; i >= 0; i--) {
       const d = new Date(date);
       d.setMonth(d.getMonth() - i);
       const monthStr = d.toISOString().slice(0, 7);
-      
+
       const monthTxs = data.transactions.filter(t => t.date.startsWith(monthStr));
       const income = monthTxs.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
       const expense = monthTxs.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
-      
+
       months.push({
-        name: formatMonth(monthStr + "-01").split(" ")[0], // Just month name
+        name: formatMonth(monthStr + "-01").split(" ")[0],
         fullDate: monthStr,
         income,
         expense,
-        net: income - expense
+        net: income - expense,
       });
     }
     return months;
   }, [data.transactions]);
 
-  // Current month category pie
   const currentMonthStr = new Date().toISOString().slice(0, 7);
   const pieData = useMemo(() => {
     const currentMonthExpenses = data.transactions.filter(
       t => t.type === "expense" && t.date.startsWith(currentMonthStr)
     );
-    
+
     const byCategory = currentMonthExpenses.reduce((acc, t) => {
       acc[t.category] = (acc[t.category] || 0) + t.amount;
       return acc;
     }, {} as Record<string, number>);
-    
+
     return Object.entries(byCategory)
       .map(([name, value]) => ({
         name,
@@ -86,13 +87,18 @@ export default function Analytics() {
             <div key={p.dataKey} className="flex items-center gap-2 text-sm">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
               <span className="text-muted-foreground capitalize">{p.dataKey}:</span>
-              <span className="font-medium text-foreground">{formatCurrency(p.value)}</span>
+              <span className="font-medium text-foreground">{formatCurrency(p.value, currency)}</span>
             </div>
           ))}
         </div>
       );
     }
     return null;
+  };
+
+  const yAxisFormatter = (value: number) => {
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+    return String(value);
   };
 
   return (
@@ -112,12 +118,12 @@ export default function Analytics() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }} barGap={2}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                    tickFormatter={(value) => `$${value}`}
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={yAxisFormatter}
                   />
                   <RechartsTooltip content={<CustomTooltip />} />
                   <Legend iconType="circle" />
@@ -138,22 +144,22 @@ export default function Analytics() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={monthlyData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                    tickFormatter={(value) => `$${value}`}
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={yAxisFormatter}
                   />
                   <RechartsTooltip content={<CustomTooltip />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="net" 
+                  <Line
+                    type="monotone"
+                    dataKey="net"
                     name="Net Balance"
-                    stroke="#14b8a6" 
+                    stroke="#14b8a6"
                     strokeWidth={3}
-                    dot={{ r: 4, fill: '#14b8a6', strokeWidth: 0 }}
-                    activeDot={{ r: 6, fill: '#14b8a6' }}
+                    dot={{ r: 4, fill: "#14b8a6", strokeWidth: 0 }}
+                    activeDot={{ r: 6, fill: "#14b8a6" }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -183,9 +189,9 @@ export default function Analytics() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <RechartsTooltip 
-                      formatter={(value: number) => formatCurrency(value)}
-                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))' }}
+                    <RechartsTooltip
+                      formatter={(value: number) => formatCurrency(value, currency)}
+                      contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", background: "hsl(var(--popover))" }}
                     />
                     <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" />
                   </PieChart>

@@ -2,14 +2,14 @@ import { Link } from "wouter";
 import { ArrowUpRight, ArrowDownRight, Wallet, PieChart as PieChartIcon } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { useStore } from "@/hooks/use-store";
+import { useSettings } from "@/hooks/use-settings";
 import { TransactionRow } from "@/components/TransactionRow";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { getCategoryColor } from "@/lib/categories";
 
-// Helper to convert tailwind color class to hex for recharts
 const getHexColor = (colorClass: string) => {
   const map: Record<string, string> = {
     "text-orange-500": "#f97316",
@@ -31,10 +31,12 @@ const getHexColor = (colorClass: string) => {
 
 export default function Dashboard() {
   const { data, updateTransaction, deleteTransaction } = useStore();
+  const { settings } = useSettings();
   const { toast } = useToast();
 
+  const currency = settings.currency;
   const currentMonth = new Date().toISOString().slice(0, 7);
-  
+
   const currentMonthTransactions = data.transactions.filter(
     (t) => t.date.startsWith(currentMonth)
   );
@@ -49,7 +51,6 @@ export default function Dashboard() {
 
   const netBalance = income - expenses;
 
-  // Data for mini pie chart
   const expenseByCategory = currentMonthTransactions
     .filter((t) => t.type === "expense")
     .reduce((acc, t) => {
@@ -77,11 +78,15 @@ export default function Dashboard() {
     toast({ title: "Transaction deleted" });
   };
 
+  const greeting = settings.name ? `Hi, ${settings.name.split(" ")[0]}` : "Dashboard";
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-display font-bold tracking-tight text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Overview of your finances for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+        <h1 className="text-3xl font-display font-bold tracking-tight text-foreground">{greeting}</h1>
+        <p className="text-muted-foreground mt-1">
+          Overview of your finances for {new Date().toLocaleString("default", { month: "long", year: "numeric" })}
+        </p>
       </div>
 
       <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
@@ -93,7 +98,9 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-display font-bold text-foreground">{formatCurrency(netBalance)}</div>
+            <div className="text-3xl font-display font-bold text-foreground">
+              {formatCurrency(netBalance, currency)}
+            </div>
           </CardContent>
         </Card>
 
@@ -105,7 +112,9 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-display font-bold text-foreground">{formatCurrency(income)}</div>
+            <div className="text-3xl font-display font-bold text-foreground">
+              {formatCurrency(income, currency)}
+            </div>
           </CardContent>
         </Card>
 
@@ -117,7 +126,9 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-display font-bold text-foreground">{formatCurrency(expenses)}</div>
+            <div className="text-3xl font-display font-bold text-foreground">
+              {formatCurrency(expenses, currency)}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -132,7 +143,7 @@ export default function Dashboard() {
               </Button>
             </Link>
           </div>
-          
+
           <div className="bg-card border rounded-2xl shadow-sm divide-y">
             {recentTransactions.length > 0 ? (
               recentTransactions.map((tx) => (
@@ -141,6 +152,7 @@ export default function Dashboard() {
                   transaction={tx}
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}
+                  currency={currency}
                 />
               ))
             ) : (
@@ -177,9 +189,9 @@ export default function Dashboard() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        formatter={(value: number) => formatCurrency(value)}
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      <Tooltip
+                        formatter={(value: number) => formatCurrency(value, currency)}
+                        contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -190,15 +202,15 @@ export default function Dashboard() {
                   <p>No expenses this month</p>
                 </div>
               )}
-              
+
               <div className="space-y-3 mt-4">
-                {pieData.slice(0, 3).map(entry => (
+                {pieData.slice(0, 3).map((entry) => (
                   <div key={entry.name} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
                       <span className="text-foreground">{entry.name}</span>
                     </div>
-                    <span className="font-medium text-foreground">{formatCurrency(entry.value)}</span>
+                    <span className="font-medium text-foreground">{formatCurrency(entry.value, currency)}</span>
                   </div>
                 ))}
               </div>

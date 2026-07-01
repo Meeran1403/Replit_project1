@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, ListOrdered, PlusCircle, PieChart, Target, Moon, Sun } from "lucide-react";
+import { LayoutDashboard, ListOrdered, PlusCircle, PieChart, Target, Moon, Sun, Settings } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
+import { useSettings } from "@/hooks/use-settings";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -13,6 +14,11 @@ const navItems = [
 export function Sidebar() {
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { settings } = useSettings();
+
+  const initials = settings.name
+    ? settings.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+    : "?";
 
   return (
     <>
@@ -31,12 +37,12 @@ export function Sidebar() {
             const isActive = location === item.href;
             const Icon = item.icon;
             return (
-              <Link 
-                key={item.href} 
-                href={item.href} 
+              <Link
+                key={item.href}
+                href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                  isActive 
-                    ? "bg-primary text-primary-foreground font-medium shadow-sm" 
+                  isActive
+                    ? "bg-primary text-primary-foreground font-medium shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground hover:translate-x-1"
                 }`}
                 data-testid={`nav-link-${item.label.toLowerCase()}`}
@@ -47,15 +53,24 @@ export function Sidebar() {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-sidebar-border">
-          <button 
-            onClick={toggleTheme} 
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" 
+        <div className="p-4 space-y-1 border-t border-sidebar-border">
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             data-testid="button-toggle-theme"
           >
             {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
           </button>
+
+          {settings.name && (
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg">
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-primary text-xs font-bold">{initials}</span>
+              </div>
+              <span className="text-sm text-foreground font-medium truncate">{settings.name}</span>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -65,9 +80,9 @@ export function Sidebar() {
           const isActive = location === item.href;
           const Icon = item.icon;
           return (
-            <Link 
-              key={item.href} 
-              href={item.href} 
+            <Link
+              key={item.href}
+              href={item.href}
               className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[64px] transition-colors ${
                 isActive ? "text-primary" : "text-muted-foreground"
               }`}

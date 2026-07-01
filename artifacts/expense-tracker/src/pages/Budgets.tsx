@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { PlusCircle, Target } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
+import { useSettings } from "@/hooks/use-settings";
 import { BudgetCard } from "@/components/BudgetCard";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,11 +27,14 @@ const budgetSchema = z.object({
 
 export default function Budgets() {
   const { data, setBudget, deleteBudget } = useStore();
+  const { settings } = useSettings();
   const { toast } = useToast();
-  
+  const currency = settings.currency;
+  const currencySymbol = settings.currencySymbol || "$";
+
   const [isAdding, setIsAdding] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
-  
+
   const currentMonth = new Date().toISOString().slice(0, 7);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
 
@@ -50,7 +54,6 @@ export default function Budgets() {
     const expenses = data.transactions.filter(
       (t) => t.type === "expense" && t.date.startsWith(selectedMonth)
     );
-    
     return expenses.reduce((acc, t) => {
       acc[t.category] = (acc[t.category] || 0) + t.amount;
       return acc;
@@ -63,7 +66,6 @@ export default function Budgets() {
       limit: values.limit,
       month: selectedMonth,
     });
-    
     toast({ title: editingBudget ? "Budget updated" : "Budget added" });
     setIsAdding(false);
     setEditingBudget(null);
@@ -72,10 +74,7 @@ export default function Budgets() {
 
   const handleEdit = (budget: any) => {
     setEditingBudget(budget);
-    form.reset({
-      category: budget.category,
-      limit: budget.limit,
-    });
+    form.reset({ category: budget.category, limit: budget.limit });
     setIsAdding(true);
   };
 
@@ -84,7 +83,6 @@ export default function Budgets() {
     toast({ title: "Budget deleted" });
   };
 
-  // Generate last 6 months for selector
   const monthOptions = useMemo(() => {
     const opts = [];
     const date = new Date();
@@ -95,6 +93,12 @@ export default function Budgets() {
     return opts;
   }, []);
 
+  const availableExpenseCategories = Object.values(CATEGORIES).filter(
+    (c) =>
+      c.type !== "income" &&
+      (settings.enabledCategories.length === 0 || settings.enabledCategories.includes(c.id))
+  );
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -102,19 +106,19 @@ export default function Budgets() {
           <h1 className="text-3xl font-display font-bold tracking-tight text-foreground">Budgets</h1>
           <p className="text-muted-foreground mt-1">Set limits and track your spending.</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-[180px] bg-background">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {monthOptions.map(m => (
+              {monthOptions.map((m) => (
                 <SelectItem key={m} value={m}>{formatMonth(m + "-01")}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          
+
           <Button onClick={() => {
             setEditingBudget(null);
             form.reset({ category: "", limit: 0 });
@@ -135,6 +139,7 @@ export default function Budgets() {
               spent={monthExpenses[budget.category] || 0}
               onEdit={() => handleEdit(budget)}
               onDelete={() => handleDelete(budget.id)}
+              currency={currency}
             />
           ))
         ) : (
@@ -180,12 +185,9 @@ export default function Budgets() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {Object.values(CATEGORIES)
-                          .filter(c => c.type !== "income")
-                          .map(c => (
-                            <SelectItem key={c.id} value={c.id}>{c.id}</SelectItem>
-                          ))
-                        }
+                        {availableExpenseCategories.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.id}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -197,10 +199,10 @@ export default function Budgets() {
                 name="limit"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Monthly Limit</FormLabel>
+                    <FormLabel>Monthly Limit ({currency})</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                        <span className="absolute left-3 top-2.5 text-muted-foreground">{currencySymbol}</span>
                         <Input type="number" step="0.01" className="pl-7" placeholder="0.00" {...field} />
                       </div>
                     </FormControl>

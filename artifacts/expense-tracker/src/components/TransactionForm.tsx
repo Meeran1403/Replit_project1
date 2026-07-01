@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CATEGORIES } from "@/lib/categories";
+import { useSettings } from "@/hooks/use-settings";
 import type { Transaction, Category } from "@/hooks/use-store";
 
 const formSchema = z.object({
@@ -34,6 +35,9 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel = "Save" }: TransactionFormProps) {
+  const { settings } = useSettings();
+  const currencySymbol = settings.currencySymbol || "$";
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -46,10 +50,11 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
   });
 
   const type = form.watch("type");
-  
-  // Filter categories by selected type
+
   const availableCategories = Object.values(CATEGORIES).filter(
-    (c) => c.type === "both" || c.type === type
+    (c) =>
+      (c.type === "both" || c.type === type) &&
+      (settings.enabledCategories.length === 0 || settings.enabledCategories.includes(c.id))
   );
 
   const handleSubmit = (values: FormValues) => {
@@ -79,8 +84,8 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
                     }}
                     className={cn(
                       "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all",
-                      field.value === "expense" 
-                        ? "bg-background shadow-sm text-foreground" 
+                      field.value === "expense"
+                        ? "bg-background shadow-sm text-foreground"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
@@ -94,8 +99,8 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
                     }}
                     className={cn(
                       "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all",
-                      field.value === "income" 
-                        ? "bg-background shadow-sm text-foreground" 
+                      field.value === "income"
+                        ? "bg-background shadow-sm text-foreground"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
@@ -117,7 +122,7 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
                 <FormLabel>Amount</FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                    <span className="absolute left-3 top-2.5 text-muted-foreground">{currencySymbol}</span>
                     <Input type="number" step="0.01" className="pl-7" placeholder="0.00" {...field} data-testid="input-amount" />
                   </div>
                 </FormControl>

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { Search, Filter, Calendar as CalendarIcon, ArrowUpDown } from "lucide-react";
+import { Search, ArrowUpDown } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
+import { useSettings } from "@/hooks/use-settings";
 import { TransactionRow } from "@/components/TransactionRow";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,17 +11,27 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Transactions() {
   const { data, updateTransaction, deleteTransaction } = useStore();
+  const { settings } = useSettings();
   const { toast } = useToast();
-  
+  const currency = settings.currency;
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
+  const availableCategories = Object.keys(CATEGORIES).filter(
+    (c) =>
+      settings.enabledCategories.length === 0 ||
+      settings.enabledCategories.includes(c as any)
+  );
+
   const filteredTransactions = useMemo(() => {
     return data.transactions
       .filter((t) => {
-        const matchesSearch = t.description.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch =
+          t.description.toLowerCase().includes(search.toLowerCase()) ||
+          t.category.toLowerCase().includes(search.toLowerCase());
         const matchesType = typeFilter === "all" || t.type === typeFilter;
         const matchesCategory = categoryFilter === "all" || t.category === categoryFilter;
         return matchesSearch && matchesType && matchesCategory;
@@ -77,15 +88,15 @@ export default function Transactions() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {Object.keys(CATEGORIES).map((c) => (
+                {availableCategories.map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
-              onClick={() => setSortOrder(prev => prev === "newest" ? "oldest" : "newest")}
+              onClick={() => setSortOrder((prev) => (prev === "newest" ? "oldest" : "newest"))}
               title={`Sort by date: ${sortOrder === "newest" ? "Oldest first" : "Newest first"}`}
               className="bg-background shrink-0"
               data-testid="button-sort"
@@ -104,6 +115,7 @@ export default function Transactions() {
               transaction={tx}
               onUpdate={handleUpdate}
               onDelete={handleDelete}
+              currency={currency}
             />
           ))
         ) : (
@@ -111,8 +123,14 @@ export default function Transactions() {
             <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
               <Search className="w-6 h-6 text-muted-foreground" />
             </div>
-            <p className="text-lg font-medium text-foreground mb-1">No transactions found</p>
-            <p>Try adjusting your search or filters.</p>
+            <p className="text-lg font-medium text-foreground mb-1">
+              {data.transactions.length === 0 ? "No transactions yet" : "No transactions found"}
+            </p>
+            <p>
+              {data.transactions.length === 0
+                ? "Add your first transaction to get started."
+                : "Try adjusting your search or filters."}
+            </p>
           </div>
         )}
       </div>

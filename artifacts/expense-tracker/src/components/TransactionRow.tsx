@@ -26,9 +26,10 @@ interface TransactionRowProps {
   transaction: Transaction;
   onUpdate: (id: string, data: Partial<Transaction>) => void;
   onDelete: (id: string) => void;
+  currency?: string;
 }
 
-export function TransactionRow({ transaction, onUpdate, onDelete }: TransactionRowProps) {
+export function TransactionRow({ transaction, onUpdate, onDelete, currency = "USD" }: TransactionRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -51,9 +52,9 @@ export function TransactionRow({ transaction, onUpdate, onDelete }: TransactionR
 
         <div className="flex items-center gap-4">
           <span className={`font-semibold ${isIncome ? "text-emerald-500 dark:text-emerald-400" : "text-foreground"}`}>
-            {isIncome ? "+" : "-"}{formatCurrency(transaction.amount)}
+            {isIncome ? "+" : "-"}{formatCurrency(transaction.amount, currency)}
           </span>
-          
+
           <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1 md:gap-2">
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setIsEditing(true)} data-testid={`button-edit-${transaction.id}`}>
               <Pencil className="w-4 h-4" />
@@ -70,7 +71,7 @@ export function TransactionRow({ transaction, onUpdate, onDelete }: TransactionR
           <DialogHeader>
             <DialogTitle>Edit Transaction</DialogTitle>
           </DialogHeader>
-          <TransactionForm 
+          <TransactionForm
             defaultValues={transaction}
             onSubmit={(data) => {
               onUpdate(transaction.id, data);
