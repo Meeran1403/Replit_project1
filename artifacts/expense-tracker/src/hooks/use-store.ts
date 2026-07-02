@@ -271,5 +271,23 @@ export function useStore() {
       },
       [save]
     ),
+
+    bulkAddTransactions: useCallback(
+      async (txs: Omit<Transaction, "id" | "createdAt">[]) => {
+        const newTransactions = txs.map((t) => ({
+          ...t,
+          id: generateId(),
+          createdAt: new Date().toISOString(),
+        }));
+        const newData: AppData = {
+          ..._data,
+          transactions: [..._data.transactions, ...newTransactions].sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          ),
+        };
+        await save(newData);
+      },
+      [save]
+    ),
   };
 }
