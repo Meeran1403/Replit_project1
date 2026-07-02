@@ -16,16 +16,43 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Trash2 } from "lucide-react";
+import { Trash2, Download } from "lucide-react";
+import { format } from "date-fns";
 
 export default function Settings() {
   const { settings, updateSettings } = useSettings();
   const { toast } = useToast();
 
+  const { data } = useStore();
   const [name, setName] = useState(settings.name || "");
   const [currency, setCurrency] = useState(settings.currency || "USD");
   const [currencySearch, setCurrencySearch] = useState("");
   const [showReset, setShowReset] = useState(false);
+
+  const handleExportCSV = () => {
+    if (data.transactions.length === 0) {
+      toast({ title: "Nothing to export", description: "Add some transactions first." });
+      return;
+    }
+    const header = ["Date", "Type", "Category", "Note", "Amount", "Currency"];
+    const rows = data.transactions.map((t) => [
+      format(new Date(t.date), "yyyy-MM-dd"),
+      t.type,
+      t.category,
+      `"${(t.note || "").replace(/"/g, '""')}"`,
+      t.type === "expense" ? `-${t.amount}` : `${t.amount}`,
+      settings.currency || "USD",
+    ]);
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ledger-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: `${data.transactions.length} transactions saved as CSV.` });
+  };
 
   const selectedCurrency = CURRENCIES.find((c) => c.code === currency) ?? CURRENCIES[0];
 
@@ -115,6 +142,35 @@ export default function Settings() {
       <Button onClick={handleSave} size="lg" className="w-full" data-testid="button-save-settings">
         Save changes
       </Button>
+
+      {/* Export */}
+      <Card className="bg-card shadow-sm border-none ring-1 ring-border">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">Export data</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Download as CSV</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {data.transactions.length > 0
+                  ? `${data.transactions.length} transaction${data.transactions.length === 1 ? "" : "s"} ready to export`
+                  : "No transactions yet"}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="gap-2 shrink-0"
+              data-testid="button-export-csv"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Danger zone */}
       <Card className="bg-card shadow-sm border-none ring-1 ring-destructive/30">
