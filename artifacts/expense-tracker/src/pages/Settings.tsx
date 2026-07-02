@@ -7,52 +7,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Trash2, Download } from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Trash2, Download, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 export default function Settings() {
   const { settings, updateSettings } = useSettings();
+  const { data } = useStore();
   const { toast } = useToast();
 
-  const { data } = useStore();
   const [name, setName] = useState(settings.name || "");
   const [currency, setCurrency] = useState(settings.currency || "USD");
   const [currencySearch, setCurrencySearch] = useState("");
   const [showReset, setShowReset] = useState(false);
-
-  const handleExportCSV = () => {
-    if (data.transactions.length === 0) {
-      toast({ title: "Nothing to export", description: "Add some transactions first." });
-      return;
-    }
-    const header = ["Date", "Type", "Category", "Note", "Amount", "Currency"];
-    const rows = data.transactions.map((t) => [
-      format(new Date(t.date), "yyyy-MM-dd"),
-      t.type,
-      t.category,
-      `"${(t.note || "").replace(/"/g, '""')}"`,
-      t.type === "expense" ? `-${t.amount}` : `${t.amount}`,
-      settings.currency || "USD",
-    ]);
-    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ledger-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "Exported", description: `${data.transactions.length} transactions saved as CSV.` });
-  };
 
   const selectedCurrency = CURRENCIES.find((c) => c.code === currency) ?? CURRENCIES[0];
 
@@ -72,10 +44,48 @@ export default function Settings() {
     toast({ title: "Settings saved" });
   };
 
-  const handleReset = () => {
+  const doExport = () => {
+    if (data.transactions.length === 0) return false;
+    const header = ["Date", "Type", "Category", "Note", "Amount", "Currency"];
+    const rows = data.transactions.map((t) => [
+      format(new Date(t.date), "yyyy-MM-dd"),
+      t.type,
+      t.category,
+      `"${(t.note || "").replace(/"/g, '""')}"`,
+      t.type === "expense" ? `-${t.amount}` : `${t.amount}`,
+      settings.currency || "USD",
+    ]);
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ledger-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return true;
+  };
+
+  const handleExportOnly = () => {
+    const exported = doExport();
+    if (!exported) {
+      toast({ title: "Nothing to export", description: "Add some transactions first." });
+    } else {
+      toast({ title: "Exported", description: `${data.transactions.length} transactions saved as CSV.` });
+    }
+  };
+
+  const handleExportAndDelete = () => {
+    doExport();
     resetStore();
-    toast({ title: "All data cleared", description: "Your transactions and budgets have been deleted." });
     setShowReset(false);
+    toast({ title: "Exported and cleared", description: "Your data was exported then deleted." });
+  };
+
+  const handleDeleteOnly = () => {
+    resetStore();
+    setShowReset(false);
+    toast({ title: "All data cleared", description: "Your transactions and budgets have been deleted." });
   };
 
   return (
@@ -161,7 +171,7 @@ export default function Settings() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExportCSV}
+              onClick={handleExportOnly}
               className="gap-2 shrink-0"
               data-testid="button-export-csv"
             >
@@ -197,25 +207,59 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <AlertDialog open={showReset} onOpenChange={setShowReset}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear all data?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete all your transactions and budgets. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleReset}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      {/* Clear All Data — 3-option dialog */}
+      <Dialog open={showReset} onOpenChange={setShowReset}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+              </div>
+              <DialogTitle className="text-lg">Clear all data?</DialogTitle>
+            </div>
+            <DialogDescription className="text-sm text-muted-foreground pt-1">
+              This will permanently delete all your transactions and budgets. Would you like to export a backup before continuing?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 pt-2">
+            <Button
+              variant="outline"
+              className="w-full gap-2 justify-start h-11"
+              onClick={handleExportAndDelete}
+              data-testid="button-export-and-delete"
             >
-              Yes, clear everything
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <Download className="w-4 h-4 text-primary" />
+              <div className="text-left">
+                <p className="font-medium text-sm">Export &amp; Delete</p>
+                <p className="text-xs text-muted-foreground font-normal">Download CSV backup, then clear everything</p>
+              </div>
+            </Button>
+
+            <Button
+              variant="destructive"
+              className="w-full gap-2 justify-start h-11"
+              onClick={handleDeleteOnly}
+              data-testid="button-delete-without-export"
+            >
+              <Trash2 className="w-4 h-4" />
+              <div className="text-left">
+                <p className="font-medium text-sm">Delete Without Export</p>
+                <p className="text-xs text-destructive-foreground/70 font-normal">Permanently remove all data immediately</p>
+              </div>
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => setShowReset(false)}
+              data-testid="button-cancel-reset"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

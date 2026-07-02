@@ -179,6 +179,7 @@ export default function Dashboard() {
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}
                   currency={currency}
+                  allowDelete={false}
                 />
               ))
             ) : (

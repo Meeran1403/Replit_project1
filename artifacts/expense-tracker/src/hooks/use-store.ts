@@ -27,6 +27,11 @@ export type Category =
   | "Salary"
   | "Freelance"
   | "Investment"
+  | "Savings"
+  | "Junk Food"
+  | "Recharge"
+  | "Movies"
+  | "Groceries"
   | "Other";
 
 export interface Transaction {
