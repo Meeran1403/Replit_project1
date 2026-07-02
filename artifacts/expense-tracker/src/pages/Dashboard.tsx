@@ -4,6 +4,7 @@ import {
   ArrowDownRight,
   Wallet,
   PieChart as PieChartIcon,
+  PlusCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { useStore } from "@/hooks/use-store";
@@ -67,6 +68,34 @@ export default function Dashboard() {
     await deleteTransaction(id);
     toast({ title: "Transaction deleted" });
   };
+
+  if (data.transactions.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight text-foreground">{greeting}</h1>
+          <p className="text-muted-foreground mt-1">
+            {new Date().toLocaleString("default", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+          </p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
+            <Wallet className="w-8 h-8 text-primary" />
+          </div>
+          <h2 className="text-2xl font-display font-bold text-foreground mb-2">No transactions yet</h2>
+          <p className="text-muted-foreground text-sm max-w-xs mb-8">
+            Add your first income or expense to see your balance and spending summary here.
+          </p>
+          <Link href="/add">
+            <Button size="lg" className="gap-2">
+              <PlusCircle className="w-5 h-5" />
+              Add first transaction
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

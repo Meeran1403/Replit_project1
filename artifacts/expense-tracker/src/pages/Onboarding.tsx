@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSettings, CURRENCIES } from "@/hooks/use-settings";
 import type { UserSettings } from "@/hooks/use-settings";
-import { supportsFileSystem, initFileStorage } from "@/hooks/use-store";
+import { supportsFileSystem, initFileStorage, resetStore } from "@/hooks/use-store";
 import { cn } from "@/lib/utils";
 
 interface OnboardingProps {
@@ -67,6 +67,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
   const handleFinish = async () => {
     let finalStorage: "localStorage" | "filesystem" = storageChoice;
+
+    resetStore();
 
     if (hasFS && storageChoice === "filesystem") {
       setIsPickingFile(true);

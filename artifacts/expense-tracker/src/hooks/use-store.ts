@@ -133,6 +133,16 @@ async function persistData(data: AppData): Promise<void> {
   }
 }
 
+/** Call once (from onboarding) to wipe any existing data and start fresh. */
+export function resetStore(): void {
+  localStorage.removeItem(STORE_KEY);
+  _data = { ...EMPTY_DATA };
+  _loadPromise = null;
+  _fileHandle = null;
+  _needsReconnect = false;
+  notify();
+}
+
 /** Call once (from onboarding) to link a user-chosen file as the data store. */
 export async function initFileStorage(): Promise<boolean> {
   const handle = await pickSaveFile();
