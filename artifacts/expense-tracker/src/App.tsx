@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
+import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -8,9 +8,8 @@ import Transactions from "./pages/Transactions";
 import AddTransaction from "./pages/AddTransaction";
 import Budgets from "./pages/Budgets";
 import Analytics from "./pages/Analytics";
-import Onboarding from "./pages/Onboarding";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/not-found";
-import { useSettings } from "./hooks/use-settings";
 import { useStore } from "./hooks/use-store";
 import { RefreshCw, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -65,6 +64,7 @@ function Router() {
         <Route path="/add" component={AddTransaction} />
         <Route path="/budgets" component={Budgets} />
         <Route path="/analytics" component={Analytics} />
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
@@ -72,18 +72,7 @@ function Router() {
 }
 
 function App() {
-  const { settings } = useSettings();
   const { isLoading, needsReconnect, reconnect } = useStore();
-  const [onboardingDone, setOnboardingDone] = useState(settings.onboardingComplete);
-
-  if (!onboardingDone) {
-    return (
-      <TooltipProvider>
-        <Onboarding onComplete={() => setOnboardingDone(true)} />
-        <Toaster />
-      </TooltipProvider>
-    );
-  }
 
   if (isLoading) {
     return (

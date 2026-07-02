@@ -9,6 +9,7 @@ const navItems = [
   { href: "/add", label: "Add", icon: PlusCircle },
   { href: "/budgets", label: "Budgets", icon: Target },
   { href: "/analytics", label: "Analytics", icon: PieChart },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -17,7 +18,7 @@ export function Sidebar() {
   const { settings } = useSettings();
 
   const initials = settings.name
-    ? settings.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+    ? settings.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()
     : "?";
 
   return (
@@ -83,7 +84,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[64px] transition-colors ${
+              className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[48px] transition-colors ${
                 isActive ? "text-primary" : "text-muted-foreground"
               }`}
               data-testid={`mobile-nav-link-${item.label.toLowerCase()}`}
