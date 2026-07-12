@@ -1,56 +1,26 @@
 const APPS_SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL as string;
 const SECRET_KEY = import.meta.env.VITE_SHEET_SYNC_SECRET as string;
 
-// Map your app's category names (left) to the exact sheet column names (right).
-// EDIT THE LEFT SIDE to match your app's real category names.
-const CATEGORY_MAP: Record<string, string> = {
-  "Transport": "local Bus",
-  "Tea/Coffee": "Tea",
-  "Eggs": "Egg",
-  "Essentials": "Daily Essentials",
-  "Dining Out": "Food out",
-  "Fast Food": "Fast food",
-  "Gym": "GYM",
-  "Cab/Rapido": "Rapido/cab",
-  "Train": "Train Book",
-  "Travel": "Long travel",
-  "Haircut": "Haircut",
-  "Mobile Recharge": "Mobile pack",
-  "Movie": "Movie",
-};
-
 export interface SyncTransaction {
-  date: string;       // "YYYY-MM-DD"
-  category: string;   // your app's category name (must be a key in CATEGORY_MAP)
+  date: string;     // "YYYY-MM-DD"
+  category: string;
   amount: number;
 }
 
 export async function syncTransactionToSheet(transaction: SyncTransaction) {
   if (!APPS_SCRIPT_URL) return;
-
-  const sheetCategory = CATEGORY_MAP[transaction.category];
-  if (!sheetCategory) {
-    console.warn(`No sheet column mapped for category "${transaction.category}" — skipping sync.`);
-    return;
-  }
-
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        date: transaction.date,
-        category: sheetCategory,
-        amount: transaction.amount,
-        secretKey: SECRET_KEY,
-      }),
+      body: JSON.stringify({ ...transaction, secretKey: SECRET_KEY }),
     });
   } catch (err) {
     console.error("Sheet sync failed:", err);
   }
 }
 
-export interface ImportedTransaction {
+export interface SheetRow {
   date: string;
   [category: string]: string | number;
 }
@@ -61,10 +31,38 @@ export async function importFromSheet(year: string, month?: string) {
   const res = await fetch(`${APPS_SCRIPT_URL}?${params.toString()}`);
   const json = await res.json();
   if (json.status !== "ok") throw new Error(json.message || "Import failed");
-  return json.data as Record<string, ImportedTransaction[]>;
+  return json.data as Record<string, SheetRow[]>;
 }
 
-// Reverse map, useful when importing sheet data back into your app's category names.
-export const SHEET_TO_APP_CATEGORY: Record<string, string> = Object.fromEntries(
-  Object.entries(CATEGORY_MAP).map(([app, sheet]) => [sheet, app])
-);
+const EXPENSE_CATEGORIES = [
+  "Food & Dining", "Groceries", "Junk Food", "Transportation", "Housing",
+  "Entertainment", "Movies", "Healthcare", "Shopping", "Education",
+  "Travel", "Utilities", "Recharge",
+];
+
+/** Converts sheet rows (one row per date, one column per category) back into
+ * individual transactions, e.g. for the import feature. */
+export function sheetDataToTransactions(data: Record<string, SheetRow[]>) {
+  const transactions: {
+    amount: number; type: "expense"; category: string; note: string; date: string;
+  }[] = [];
+
+  Object.values(data).forEach((rows) => {
+    rows.forEach((row) => {
+      EXPENSE_CATEGORIES.forEach((cat) => {
+        const amount = Number(row[cat]) || 0;
+        if (amount > 0) {
+          transactions.push({
+            amount,
+            type: "expense",
+            category: cat,
+            note: "Imported from Google Sheet",
+            date: row.date,
+          });
+        }
+      });
+    });
+  });
+
+  return transactions;
+}
