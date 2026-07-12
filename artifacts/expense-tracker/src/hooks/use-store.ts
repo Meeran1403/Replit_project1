@@ -1,3 +1,4 @@
+import { syncTransactionToSheet } from "@/lib/sheetSync";
 import { useState, useEffect, useCallback } from "react";
 import {
   getHandleFromDB,
@@ -219,6 +220,9 @@ export function useStore() {
           ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
         };
         await save(newData);
+        if (t.type === "expense") {
+          syncTransactionToSheet({ date: t.date, category: t.category, amount: t.amount });
+        }
       },
       [save]
     ),

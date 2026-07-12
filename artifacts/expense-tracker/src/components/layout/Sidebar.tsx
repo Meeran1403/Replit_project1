@@ -1,3 +1,4 @@
+import { ImportFromSheetDialog } from "@/components/ImportFromSheetDialog";
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, ListOrdered, PlusCircle, PieChart, Target, Moon, Sun, Settings } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
@@ -63,6 +64,7 @@ export function Sidebar() {
             {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
           </button>
+          <ImportFromSheetDialog />
 
           {settings.name && (
             <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg">
