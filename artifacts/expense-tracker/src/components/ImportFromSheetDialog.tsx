@@ -40,13 +40,10 @@ export function ImportFromSheetDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          data-testid="button-import-sheet"
-        >
-          <CloudDownload className="w-5 h-5" />
-          <span>Import from Sheet</span>
-        </button>
+        <Button variant="outline" size="sm" className="gap-2 shrink-0" data-testid="button-import-sheet">
+          <CloudDownload className="w-4 h-4" />
+          Import
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

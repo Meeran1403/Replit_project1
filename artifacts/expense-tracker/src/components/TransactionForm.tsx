@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CATEGORIES } from "@/lib/categories";
+import { getAllCategories } from "@/lib/categories";
 import { useSettings } from "@/hooks/use-settings";
 import type { Transaction, Category } from "@/hooks/use-store";
 
@@ -47,8 +47,8 @@ export function TransactionForm({ defaultValues, onSubmit, onCancel, submitLabel
   });
 
   const type = form.watch("type");
-  const availableCategories = Object.values(CATEGORIES).filter(
-    (c) => c.type === "both" || c.type === type
+  const availableCategories = getAllCategories().filter(
+  (c) => c.type === "both" || c.type === type
   );
 
   const handleSubmit = (values: FormValues) => {

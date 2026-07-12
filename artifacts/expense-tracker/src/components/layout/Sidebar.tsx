@@ -1,7 +1,5 @@
-import { ImportFromSheetDialog } from "@/components/ImportFromSheetDialog";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, ListOrdered, PlusCircle, PieChart, Target, Moon, Sun, Settings } from "lucide-react";
-import { useTheme } from "@/hooks/use-theme";
+import { LayoutDashboard, ListOrdered, PlusCircle, PieChart, Target, Settings } from "lucide-react";
 import { useSettings } from "@/hooks/use-settings";
 
 const navItems = [
@@ -15,7 +13,6 @@ const navItems = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { theme, toggleTheme } = useTheme();
   const { settings } = useSettings();
 
   const initials = settings.name
@@ -56,16 +53,6 @@ export function Sidebar() {
           })}
         </nav>
         <div className="p-4 space-y-1 border-t border-sidebar-border">
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            data-testid="button-toggle-theme"
-          >
-            {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-            <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
-          </button>
-          <ImportFromSheetDialog />
-
           {settings.name && (
             <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg">
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">

@@ -1,4 +1,4 @@
-import { syncTransactionToSheet } from "@/lib/sheetSync";
+import { syncTransactionToSheet, deleteTransactionFromSheet } from "@/lib/sheetSync";
 import { useState, useEffect, useCallback } from "react";
 import {
   getHandleFromDB,
@@ -15,25 +15,8 @@ export { supportsFileSystem };
 
 export type TransactionType = "income" | "expense";
 
-export type Category =
-  | "Food & Dining"
-  | "Transportation"
-  | "Housing"
-  | "Entertainment"
-  | "Healthcare"
-  | "Shopping"
-  | "Education"
-  | "Travel"
-  | "Utilities"
-  | "Salary"
-  | "Freelance"
-  | "Investment"
-  | "Savings"
-  | "Junk Food"
-  | "Recharge"
-  | "Movies"
-  | "Groceries"
-  | "Other";
+// Categories are now user-extensible (see @/lib/categories), so this is just a string.
+export type Category = string;
 
 export interface Transaction {
   id: string;
@@ -156,7 +139,6 @@ export async function initFileStorage(): Promise<boolean> {
   await saveHandleToDB(handle);
   _fileHandle = handle;
   _needsReconnect = false;
-  // Write current data to file
   await persistData(_data);
   notify();
   return true;
@@ -173,7 +155,6 @@ export function useStore() {
     const rerender = () => forceUpdate((n) => n + 1);
     listeners.add(rerender);
 
-    // Kick off load once
     if (!_loadPromise) {
       _loadPromise = loadData();
     } else if (!_isLoading) {
@@ -220,9 +201,7 @@ export function useStore() {
           ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
         };
         await save(newData);
-        if (t.type === "expense") {
-          syncTransactionToSheet({ date: t.date, category: t.category, amount: t.amount });
-        }
+        syncTransactionToSheet({ date: t.date, category: t.category, amount: t.amount, type: t.type });
       },
       [save]
     ),
@@ -242,11 +221,15 @@ export function useStore() {
 
     deleteTransaction: useCallback(
       async (id: string) => {
+        const tx = _data.transactions.find((t) => t.id === id);
         const newData: AppData = {
           ..._data,
-          transactions: _data.transactions.filter((tx) => tx.id !== id),
+          transactions: _data.transactions.filter((t) => t.id !== id),
         };
         await save(newData);
+        if (tx) {
+          deleteTransactionFromSheet({ date: tx.date, category: tx.category, amount: tx.amount, type: tx.type });
+        }
       },
       [save]
     ),

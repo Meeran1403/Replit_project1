@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSettings, CURRENCIES } from "@/hooks/use-settings";
 import { useStore, resetStore } from "@/hooks/use-store";
+import { useTheme } from "@/hooks/use-theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,18 +14,35 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Trash2, Download, AlertTriangle } from "lucide-react";
+import { Trash2, Download, AlertTriangle, Moon, Sun, Plus, X } from "lucide-react";
 import { format } from "date-fns";
+import { ImportFromSheetDialog } from "@/components/ImportFromSheetDialog";
+import {
+  getAllCategories,
+  getCustomCategories,
+  addCustomCategory,
+  removeCustomCategory,
+  subscribeCategories,
+  type CategoryInfo,
+} from "@/lib/categories";
 
 export default function Settings() {
   const { settings, updateSettings } = useSettings();
   const { data } = useStore();
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
 
   const [name, setName] = useState(settings.name || "");
   const [currency, setCurrency] = useState(settings.currency || "USD");
   const [currencySearch, setCurrencySearch] = useState("");
   const [showReset, setShowReset] = useState(false);
+
+  const [categories, setCategories] = useState<CategoryInfo[]>(getAllCategories());
+  const [newCategory, setNewCategory] = useState("");
+  const [newCategoryType, setNewCategoryType] = useState<"expense" | "income">("expense");
+  const customIds = new Set(getCustomCategories().map((c) => c.id));
+
+  useEffect(() => subscribeCategories(() => setCategories(getAllCategories())), []);
 
   const selectedCurrency = CURRENCIES.find((c) => c.code === currency) ?? CURRENCIES[0];
 
@@ -42,6 +60,21 @@ export default function Settings() {
       currencySymbol: selectedCurrency.symbol,
     });
     toast({ title: "Settings saved" });
+  };
+
+  const handleAddCategory = () => {
+    const ok = addCustomCategory(newCategory, newCategoryType);
+    if (ok) {
+      toast({ title: "Category added", description: `"${newCategory.trim()}" is now available when adding transactions.` });
+      setNewCategory("");
+    } else {
+      toast({ title: "Couldn't add category", description: "That name is empty or already exists.", variant: "destructive" as any });
+    }
+  };
+
+  const handleRemoveCategory = (id: string) => {
+    removeCustomCategory(id);
+    toast({ title: "Category removed" });
   };
 
   const doExport = () => {
@@ -64,15 +97,6 @@ export default function Settings() {
     a.click();
     URL.revokeObjectURL(url);
     return true;
-  };
-
-  const handleExportOnly = () => {
-    const exported = doExport();
-    if (!exported) {
-      toast({ title: "Nothing to export", description: "Add some transactions first." });
-    } else {
-      toast({ title: "Exported", description: `${data.transactions.length} transactions saved as CSV.` });
-    }
   };
 
   const handleExportAndDelete = () => {
@@ -108,6 +132,31 @@ export default function Settings() {
             className="h-11 bg-background"
             data-testid="input-settings-name"
           />
+        </CardContent>
+      </Card>
+
+      {/* Appearance */}
+      <Card className="bg-card shadow-sm border-none ring-1 ring-border">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">Appearance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Dark mode</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Switch between light and dark themes.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleTheme}
+              className="gap-2 shrink-0"
+              data-testid="button-toggle-theme"
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              {theme === "light" ? "Dark" : "Light"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -149,117 +198,6 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} size="lg" className="w-full" data-testid="button-save-settings">
-        Save changes
-      </Button>
+      <Button onClick={handleSave} size=" **…**
 
-      {/* Export */}
-      <Card className="bg-card shadow-sm border-none ring-1 ring-border">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold">Export data</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Download as CSV</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {data.transactions.length > 0
-                  ? `${data.transactions.length} transaction${data.transactions.length === 1 ? "" : "s"} ready to export`
-                  : "No transactions yet"}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportOnly}
-              className="gap-2 shrink-0"
-              data-testid="button-export-csv"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Danger zone */}
-      <Card className="bg-card shadow-sm border-none ring-1 ring-destructive/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-destructive">Danger zone</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Clear all data</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Permanently delete all transactions and budgets.</p>
-            </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setShowReset(true)}
-              className="gap-2 shrink-0"
-              data-testid="button-clear-data"
-            >
-              <Trash2 className="w-4 h-4" />
-              Clear
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Clear All Data — 3-option dialog */}
-      <Dialog open={showReset} onOpenChange={setShowReset}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-destructive" />
-              </div>
-              <DialogTitle className="text-lg">Clear all data?</DialogTitle>
-            </div>
-            <DialogDescription className="text-sm text-muted-foreground pt-1">
-              This will permanently delete all your transactions and budgets. Would you like to export a backup before continuing?
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-3 pt-2">
-            <Button
-              variant="outline"
-              className="w-full gap-2 justify-start h-11"
-              onClick={handleExportAndDelete}
-              data-testid="button-export-and-delete"
-            >
-              <Download className="w-4 h-4 text-primary" />
-              <div className="text-left">
-                <p className="font-medium text-sm">Export &amp; Delete</p>
-                <p className="text-xs text-muted-foreground font-normal">Download CSV backup, then clear everything</p>
-              </div>
-            </Button>
-
-            <Button
-              variant="destructive"
-              className="w-full gap-2 justify-start h-11"
-              onClick={handleDeleteOnly}
-              data-testid="button-delete-without-export"
-            >
-              <Trash2 className="w-4 h-4" />
-              <div className="text-left">
-                <p className="font-medium text-sm">Delete Without Export</p>
-                <p className="text-xs text-destructive-foreground/70 font-normal">Permanently remove all data immediately</p>
-              </div>
-            </Button>
-
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={() => setShowReset(false)}
-              data-testid="button-cancel-reset"
-            >
-              Cancel
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+_This response is too long to display in full._
